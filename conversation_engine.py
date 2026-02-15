@@ -11,6 +11,8 @@ import numpy as np
 import time
 import uuid
 import main
+print("Imported main from:", main.__file__)
+
 
 load_dotenv()
 client = OpenAI()

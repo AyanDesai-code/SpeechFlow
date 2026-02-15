@@ -17,27 +17,66 @@ labels = ['FP', 'RP', 'RV', 'RS', 'PW']
 
 def run_asr(audio_file, device):
 
-    # Load audio file and resample to 16 kHz
+    # -----------------------------
+    # Load audio and resample
+    # -----------------------------
     audio, orgnl_sr = torchaudio.load(audio_file)
     audio_rs = torchaudio.functional.resample(audio, orgnl_sr, 16000)[0, :]
-    audio_rs.to(device)
+    audio_rs = audio_rs.to(device)
 
-    # Load in Whisper model that has been fine-tuned for verbatim speech transcription
+    # -----------------------------
+    # Load fine-tuned Whisper model
+    # -----------------------------
     model = whisper.load_model('demo_models/asr', device='cpu')
     model.to(device)
-    print('loaded finetuned whisper asr') 
+    print('loaded finetuned whisper asr')
 
-    # Get Whisper output
-    result = whisper.transcribe(model, audio_rs, language='en', beam_size=5, temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0))
+    # -----------------------------
+    # Run Whisper transcription
+    # -----------------------------
+    result = whisper.transcribe(
+        model,
+        audio_rs,
+        language='en',
+        beam_size=5,
+        temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+    )
 
-    # Convert output dictionary to a dataframe
+    # -----------------------------
+    # Extract word-level timestamps
+    # -----------------------------
     words = []
-    for segment in result['segments']:
-        words += segment['words']
+
+    if 'segments' in result:
+        for segment in result['segments']:
+            if 'words' in segment:
+                words += segment['words']
+
+    if len(words) == 0:
+        print("⚠ No words detected by ASR.")
+        return pd.DataFrame(columns=['start', 'end', 'text'])
+
     text_df = pd.DataFrame(words)
-    text_df['text'] = text_df['text'].str.lower()
+
+    # Ensure required columns exist
+    required_cols = ['start', 'end', 'text']
+    for col in required_cols:
+        if col not in text_df.columns:
+            text_df[col] = np.nan
+
+    # Clean text
+    text_df['text'] = text_df['text'].astype(str).str.lower()
+
+    # 🔥 Critical Fix: Remove invalid timestamps
+    text_df = text_df.dropna(subset=['start', 'end'])
+    text_df = text_df.reset_index(drop=True)
+
+    if len(text_df) == 0:
+        print("⚠ All ASR timestamps were invalid.")
+        return pd.DataFrame(columns=['start', 'end', 'text'])
 
     return text_df
+
 
 def run_language_based(audio_file, text_df, device):
 
@@ -47,38 +86,49 @@ def run_language_based(audio_file, text_df, device):
     tokens = tokenizer(text, return_tensors="pt")
     input_ids = tokens['input_ids'].to(device)
 
-    # Initialize Bert model and load in pre-trained weights
-    model = BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=5)
-    model.load_state_dict(torch.load('demo_models/language.pt', map_location='cpu'))
-    print('loaded finetuned language model') 
+    # Initialize Bert model
+    model = BertForTokenClassification.from_pretrained(
+        'bert-base-uncased',
+        num_labels=5
+    )
+
+    # 🔥 FIX: Load state dict safely
+    state_dict = torch.load('demo_models/language.pt', map_location=device)
+    model.load_state_dict(state_dict, strict=False)
+
+    print('loaded finetuned language model')
 
     model.config.output_hidden_states = True
     model.to(device)
 
-    # Get Bert output at the word-level
-    output = model.forward(input_ids=input_ids)
+    # Get Bert output
+    output = model(input_ids=input_ids)
     probs = torch.sigmoid(output.logits)
     preds = (probs > 0.5).int()[0][1:-1]
     emb = output.hidden_states[-1][0][1:-1]
 
-    # Convert Bert word-level output to a dataframe with word timestamps
+    # Convert to dataframe
     pred_columns = [f"pred{i}" for i in range(preds.shape[1])]
     pred_df = pd.DataFrame(preds.cpu(), columns=pred_columns)
+
     emb_columns = [f"emb{i}" for i in range(emb.shape[1])]
     emb_df = pd.DataFrame(emb.detach().cpu(), columns=emb_columns)
+
     df = pd.concat([text_df, pred_df, emb_df], axis=1)
 
-    # Convert dataframe to frame-level output
+    # Convert to frame-level
     frame_emb, frame_pred = convert_word_to_framelevel(audio_file, df)
 
     return frame_emb, frame_pred
+
 
 def convert_word_to_framelevel(audio_file, df):
 
     # How long does the frame-level output need to be?
     df['end'] = df['end'] + 0.01
-    info = torchaudio.info(audio_file)
-    end = info.num_frames / info.sample_rate
+    audio, sr = torchaudio.load(audio_file)
+    end = audio.shape[1] / sr
+
 
     # Initialize lists for frame-level predictions and embeddings (every 10 ms)
     frame_time = np.arange(0, end, 0.01).tolist()
@@ -176,6 +226,37 @@ def setup_log(log_file):
     # Redirect stdout and stderr to the logger
     sys.stdout = logger
     sys.stderr = logger
+
+def process_audio(audio_file,
+                  output_file="temp_output.csv",
+                  output_trans=None,
+                  device="cpu",
+                  modality="multimodal"):
+
+    text_df = None
+
+    if modality == 'language' or modality == 'multimodal':
+        text_df = run_asr(audio_file, device)
+        if output_trans is not None:
+            text_df.to_csv(output_trans)
+        language_emb, preds = run_language_based(audio_file, text_df, device)
+
+    if modality == 'acoustic' or modality == 'multimodal':
+        acoustic_emb, preds = run_acoustic_based(audio_file, device)
+
+    if modality == 'multimodal':
+        preds = run_multimodal(language_emb, acoustic_emb, device)
+
+    pred_df = pd.DataFrame(preds.cpu(), columns=labels).astype(int)
+    pred_df['frame_time'] = [
+        round(i * 0.02, 2) for i in range(pred_df.shape[0])
+    ]
+    pred_df = pred_df.set_index('frame_time')
+
+    pred_df.to_csv(output_file)
+
+    return pred_df
+    
 
 if __name__ == '__main__':
 
