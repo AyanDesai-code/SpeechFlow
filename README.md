@@ -1,4 +1,4 @@
-<h1> A useful tool to help correct speech impedements </h1>
+<h1> A useful tool to help correct stuttering </h1>
 <h2>Dependencies</h2>
 This project is built off of <a href="https://github.com/amritkromana/disfluency_detection_from_audio">this</a> github repo which has been massively helpful</p>
 
@@ -20,3 +20,11 @@ The following packages are needed:
 - transformers==4.22.2
 - whisper_timestamped==1.14.4
 - gdown==5.1.0
+
+<h2>How to use</h2>
+
+Its really simple! An amazing stuttering correction device that runs completely in the terminal, you just need to install the dependencies to get started, you talk into the device to tell it what you want to disscuss, which commences a 2 minute discussion on said topic, afterwards the conversation is analyzed and problematic words that have been flagged as being said wrong will be displayed and you just need to repeat them, this exercise can really help solve speech disorders especially stuttering.
+
+<h2>Future Plans</h2>
+
+Although this only runs in a terminal, a GUI browser version is currently being developed and will be released later this month!
