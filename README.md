@@ -15,9 +15,9 @@ gdown --id 1LPchbScA_cuFx1XoNxpFCYZfGoJCfWao -O multimodal.pt
 
 also 
 install these packages
--pandas==1.5.0
--torch==1.12.1
--torchaudio==0.12.1
--transformers==4.22.2
--whisper_timestamped==1.14.4
--gdown==5.1.0
+-pandas==1.5.0 
+-torch==1.12.1 
+-torchaudio==0.12.1 
+-transformers==4.22.2 
+-whisper_timestamped==1.14.4 
+-gdown==5.1.0 
