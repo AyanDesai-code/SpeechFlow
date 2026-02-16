@@ -23,7 +23,7 @@ The following packages are needed:
 
 <h2>How to use</h2>
 
-Its really simple! An amazing stuttering correction device that runs completely in the terminal, you just need to install the dependencies to get started, you talk into the device to tell it what you want to disscuss, which commences a 2 minute discussion on said topic, afterwards the conversation is analyzed and problematic words that have been flagged as being said wrong will be displayed and you just need to repeat them, this exercise can really help solve speech disorders especially stuttering.
+Its really simple! An amazing stuttering correction device that runs completely in the terminal, you just need to <a href ="https://python.land/virtual-environments/virtualenv"> create a python virtual environment </a> and install the dependencies to get started, you talk into the device to tell it what you want to disscuss, which commences a 2 minute discussion on said topic, afterwards the conversation is analyzed and problematic words that have been flagged as being said wrong will be displayed and you just need to repeat them, this exercise can really help solve speech disorders especially stuttering.
 
 <h2>Future Plans</h2>
 
