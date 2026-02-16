@@ -2,6 +2,7 @@
 <h2>Dependencies</h2>
 This project is built off of <a href="https://github.com/amritkromana/disfluency_detection_from_audio">this</a> github repo which has been massively helpful</p>
 
+please install these:
 ```
 mkdir demo_models && cd demo_models
 mkdir asr && cd asr
