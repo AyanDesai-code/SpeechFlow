@@ -17,23 +17,14 @@ labels = ['FP', 'RP', 'RV', 'RS', 'PW']
 
 def run_asr(audio_file, device):
 
-    # -----------------------------
-    # Load audio and resample
-    # -----------------------------
     audio, orgnl_sr = torchaudio.load(audio_file)
     audio_rs = torchaudio.functional.resample(audio, orgnl_sr, 16000)[0, :]
     audio_rs = audio_rs.to(device)
 
-    # -----------------------------
-    # Load fine-tuned Whisper model
-    # -----------------------------
     model = whisper.load_model('demo_models/asr', device='cpu')
     model.to(device)
     print('loaded finetuned whisper asr')
 
-    # -----------------------------
-    # Run Whisper transcription
-    # -----------------------------
     result = whisper.transcribe(
         model,
         audio_rs,
@@ -42,40 +33,23 @@ def run_asr(audio_file, device):
         temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
     )
 
-    # -----------------------------
-    # Extract word-level timestamps
-    # -----------------------------
     words = []
-
-    if 'segments' in result:
-        for segment in result['segments']:
-            if 'words' in segment:
-                words += segment['words']
-
-    if len(words) == 0:
-        print("⚠ No words detected by ASR.")
-        return pd.DataFrame(columns=['start', 'end', 'text'])
+    for segment in result['segments']:
+        if 'words' in segment:
+            words += segment['words']
 
     text_df = pd.DataFrame(words)
 
-    # Ensure required columns exist
-    required_cols = ['start', 'end', 'text']
-    for col in required_cols:
-        if col not in text_df.columns:
-            text_df[col] = np.nan
-
-    # Clean text
-    text_df['text'] = text_df['text'].astype(str).str.lower()
-
-    # 🔥 Critical Fix: Remove invalid timestamps
-    text_df = text_df.dropna(subset=['start', 'end'])
-    text_df = text_df.reset_index(drop=True)
-
-    if len(text_df) == 0:
-        print("⚠ All ASR timestamps were invalid.")
+    if text_df.empty:
         return pd.DataFrame(columns=['start', 'end', 'text'])
 
+    # 🔥 CRITICAL FIX
+    text_df = text_df.dropna(subset=['start', 'end'])
+    text_df = text_df[text_df['end'] > text_df['start']]
+    text_df['text'] = text_df['text'].str.lower()
+
     return text_df
+
 
 
 def run_language_based(audio_file, text_df, device):
@@ -138,11 +112,25 @@ def convert_word_to_framelevel(audio_file, df):
 
     # Loop through text to convert each word's predictions and embeddings to the frame-level (every 10 ms)
     for idx, row in df.iterrows():
-        start_idx = round(row['start'] * 100)
-        end_idx = round(row['end'] * 100)
+
+        if pd.isna(row['start']) or pd.isna(row['end']):
+            continue
+
+        start_idx = int(row['start'] * 100)
+        end_idx = int(row['end'] * 100)
+
+        if end_idx <= start_idx:
+            continue
+
         end_idx = min(end_idx, len(frame_time))
-        frame_pred[start_idx:end_idx] = [[row['pred' + str(pidx)] for pidx in range(num_labels)]] * (end_idx - start_idx)
-        frame_emb[start_idx:end_idx] = [[row['emb' + str(eidx)] for eidx in range(768)]] * (end_idx - start_idx)
+
+        frame_pred[start_idx:end_idx] = [
+            [row['pred' + str(pidx)] for pidx in range(num_labels)]
+        ] * (end_idx - start_idx)
+
+        frame_emb[start_idx:end_idx] = [
+            [row['emb' + str(eidx)] for eidx in range(768)]
+        ] * (end_idx - start_idx)
 
     # Convert these frame-level predictions and embeddings from every 10 ms to every 20 ms (consistent with WavLM output)
     frame_emb = torch.Tensor(np.array(frame_emb)[::2])
@@ -255,7 +243,7 @@ def process_audio(audio_file,
 
     pred_df.to_csv(output_file)
 
-    return pred_df
+    return pred_df, text_df
     
 
 if __name__ == '__main__':
