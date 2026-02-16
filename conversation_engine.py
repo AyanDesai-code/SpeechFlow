@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import time
 import uuid
+import re
 import numpy as np
 import pandas as pd
 from collections import Counter
@@ -14,12 +15,9 @@ from scipy.io.wavfile import write
 import whisper
 import pyttsx3
 
-import main  # your rebuilt main.py
+import main
 
 
-# ==========================================
-# SETUP
-# ==========================================
 
 load_dotenv()
 client = OpenAI()
@@ -27,7 +25,7 @@ client = OpenAI()
 conversation = [
     {
         "role": "system",
-        "content": "You are a friendly conversational AI that is engaging and likes to chat about anything the user enjoys."
+        "content": "You are a friendly conversational AI. Keep responses short and concise. Only speak English. No emojis."
     }
 ]
 
@@ -36,13 +34,8 @@ whisper_model = whisper.load_model("small")
 print("Whisper loaded.")
 
 tts_engine = pyttsx3.init()
-
 audio_files = []
 
-
-# ==========================================
-# RECORD AUDIO
-# ==========================================
 
 def record_audio(fs=16000,
                  silence_threshold=0.002,
@@ -97,10 +90,6 @@ def record_audio(fs=16000,
     return filename
 
 
-# ==========================================
-# SPEECH / AI
-# ==========================================
-
 def transcribe(audio_path):
     result = whisper_model.transcribe(audio_path)
     return result["text"]
@@ -110,7 +99,7 @@ def speak(text):
     print("AI:", text)
     tts_engine.say(text)
     tts_engine.runAndWait()
-    time.sleep(0.8)
+    time.sleep(0.6)
 
 
 def get_ai_response(user_text):
@@ -127,57 +116,63 @@ def get_ai_response(user_text):
     return ai_text
 
 
-# ==========================================
-# PRACTICE MODE
-# ==========================================
+def clean_words(text):
+    return re.findall(r"[a-zA-Z]+", text.lower())
+
 
 def force_practice(word):
 
-    speak(f"You must say the word: {word}. Say it once, clearly.")
+    word = word.lower()
+    speak(f"You must say the word {word}. Say it once clearly.")
 
     while True:
 
         audio_file = record_audio()
-
         if audio_file is None:
             continue
 
-        transcript = transcribe(audio_file).lower().strip()
-        words = transcript.split()
+        transcript = transcribe(audio_file)
+        print("Heard:", transcript)
 
-        try:
-            pred_df, text_df = main.process_audio(audio_file)
-        except Exception:
-            speak("Try again.")
-            continue
+        words = clean_words(transcript)
 
-        if len(pred_df) > 0:
-            fp_ratio = pred_df["FP"].mean()
-        else:
-            fp_ratio = 0
+        correct = word in words
+        short_enough = len(words) <= 2
 
-        repetition = any(
-            words[i] == words[i - 1]
-            for i in range(1, len(words))
-        )
+        repetition = False
+        for i in range(1, len(words)):
+            if words[i] == words[i - 1]:
+                repetition = True
 
-        correct = word.lower() in words
-        single = len(words) <= 2
-
-        if correct and not repetition and fp_ratio < 0.6 and single:
+        if correct and short_enough and not repetition:
             speak("Good. That was clear.")
             break
         else:
-            speak("Not clear. Say it once, slowly.")
+            speak("Not clear. Say it once slowly.")
 
 
-# ==========================================
-# SESSION ANALYSIS
-# ==========================================
+def has_prefix_stutter(word):
+    word = word.lower().replace("-", "")
+    if len(word) < 6:
+        return False
+
+    for size in [1, 2, 3]:
+        prefix = word[:size]
+        if word.startswith(prefix * 3):
+            return True
+
+    return False
+
+
+def has_hyphen_stutter(word):
+    parts = word.split("-")
+    if len(parts) >= 3 and all(p == parts[0] for p in parts[:-1]):
+        return True
+    return False
+
 
 def analyze_session(audio_files):
 
-    fp_word_counter = Counter()
     repetition_counter = Counter()
 
     for file in audio_files:
@@ -185,83 +180,74 @@ def analyze_session(audio_files):
         print("Processing", file)
 
         try:
-            pred_df, text_df = main.process_audio(file)
+            _, text_df = main.process_audio(file)
         except Exception as e:
             print("Skipping", file, e)
             continue
 
-        words = text_df["text"].fillna("").str.lower().tolist()
+        raw_words = text_df["text"].fillna("").tolist()
+        words = [w.lower() for w in raw_words if w]
 
-        # repetition detection
-        for i in range(1, len(words)):
-            if words[i] == words[i - 1] and words[i] != "":
-                repetition_counter[words[i]] += 1
+        raw_text = " ".join(words)
 
-        # FP mapping
-        for _, row in text_df.iterrows():
+        matches = re.findall(r"\b(\w+)( \1){2,}", raw_text)
+        for match in matches:
+            repetition_counter[match[0]] += 3
 
-            if pd.isna(row["start"]) or pd.isna(row["end"]):
-                continue
+        for word in words:
+            if has_prefix_stutter(word):
+                repetition_counter[word] += 3
+            if has_hyphen_stutter(word):
+                repetition_counter[word] += 3
 
-            start_frame = int(row["start"] / 0.02)
-            end_frame = int(row["end"] / 0.02)
-            end_frame = min(end_frame, len(pred_df) - 1)
+        i = 0
+        while i < len(words):
+            run_length = 1
+            while i + run_length < len(words) and words[i] == words[i + run_length]:
+                run_length += 1
 
-            if end_frame <= start_frame:
-                continue
+            if run_length >= 2:
+                repetition_counter[words[i]] += run_length
 
-            word_frames = pred_df.iloc[start_frame:end_frame]
+            i += run_length
 
-            if len(word_frames) == 0:
-                continue
+        for i in range(len(words) - 3):
+            if words[i:i+2] == words[i+2:i+4]:
+                phrase = " ".join(words[i:i+2])
+                repetition_counter[phrase] += 2
 
-            if word_frames["FP"].mean() > 0.5:
-                fp_word_counter[row["text"].lower()] += 1
-
-    # ======================================
-    # CLEAN WORD FILTERING
-    # ======================================
 
     FILLER_WORDS = {"uh", "um", "erm", "ah", "uhh", "umm"}
 
-    def is_valid_practice_word(word):
+    def valid(word):
         return (
             word not in FILLER_WORDS and
-            word.isalpha() and
+            word.replace("-", "").isalpha() and
             len(word) >= 4
         )
 
     practice_words = Counter()
 
-    for word, count in fp_word_counter.items():
-        if count > 1 and is_valid_practice_word(word):
-            practice_words[word] += count
-
     for word, count in repetition_counter.items():
-        if count > 1 and is_valid_practice_word(word):
+        if count >= 2 and valid(word):
             practice_words[word] += count
 
     return practice_words
 
 
-# ==========================================
-# MAIN LOOP
-# ==========================================
 
 if __name__ == "__main__":
 
     start_time = time.time()
-
-    speak("Hi! What’s something you enjoy?")
+    speak("Hi. What is something you enjoy?")
 
     while True:
 
         if time.time() - start_time > CONVERSATION_LIMIT:
-            speak("That was a great conversation! Let's stop here.")
+            speak("That was a good conversation. Let us stop here.")
             break
 
         audio_file = record_audio()
-
         if audio_file is None:
             continue
 
@@ -279,23 +265,15 @@ if __name__ == "__main__":
         ai_reply = get_ai_response(user_text)
         speak(ai_reply)
 
-    # ======================================
-    # AFTER SESSION
-    # ======================================
-
     print("\nAnalyzing session...\n")
 
     practice_words = analyze_session(audio_files)
 
     if not practice_words:
-        speak("You spoke smoothly. Great job.")
+        speak("You spoke smoothly. Good job.")
     else:
         top_words = [w for w, _ in practice_words.most_common(5)]
-
-        speak(
-            "We will practice these words: "
-            + ", ".join(top_words)
-        )
+        speak("We will practice these words: " + ", ".join(top_words))
 
         for word in top_words:
             force_practice(word)
