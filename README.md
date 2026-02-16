@@ -1,5 +1,5 @@
-#A useful tool to help correct speech impedements </h1>
-##Dependencies</h2>
+<h1> A useful tool to help correct speech impedements </h1>
+<h2>Dependencies</h2>
 This project is built off of <a href="https://github.com/amritkromana/disfluency_detection_from_audio">this</a> github repo which has been massively helpful</p>
 
 ```
