@@ -9,6 +9,7 @@ const backendStatus = document.getElementById("backendStatus");
 const transcriptHint = document.getElementById("transcriptHint");
 
 const startConversationBtn = document.getElementById("startConversationBtn");
+
 const toLoadingBtn = document.getElementById("toLoadingBtn");
 const restartBtn = document.getElementById("restartBtn");
 
@@ -31,6 +32,7 @@ const apiBase = "";
 let conversationStarted = false;
 let transcriptTimer = null;
 let currentTranscript = [];
+const apiBase = `${window.location.protocol}//${window.location.hostname}:8787`;
 
 function showScreen(target) {
   [transcriptScreen, loadingScreen, finalScreen].forEach((screen) => {
@@ -42,6 +44,12 @@ function showScreen(target) {
 function renderTranscript(lines = []) {
   transcriptList.innerHTML = "";
   lines.forEach((line) => {
+function renderTranscript(lines = demoTranscript) {
+  transcriptList.innerHTML = "";
+  lines.forEach((line) => {
+function renderTranscript() {
+  transcriptList.innerHTML = "";
+  demoTranscript.forEach((line) => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="who">${line.role}</span>${line.text}`;
     transcriptList.append(li);
@@ -90,6 +98,10 @@ function renderFinal(result) {
   practiceList.innerHTML = "";
 
   Object.entries(practiceWords)
+function renderFinal() {
+  practiceList.innerHTML = "";
+
+  Object.entries(demoPracticeWords)
     .sort((a, b) => b[1] - a[1])
     .forEach(([word, count]) => {
       const li = document.createElement("li");
@@ -113,6 +125,7 @@ async function checkBackend() {
 
 async function analyzeTranscriptWithBackend() {
   const payload = { transcript: currentTranscript.length ? currentTranscript : demoTranscript };
+  const payload = { transcript: demoTranscript };
 
   const res = await fetch(`${apiBase}/api/analyze-transcript`, {
     method: "POST",
@@ -159,5 +172,23 @@ restartBtn.addEventListener("click", () => {
 });
 
 resetTranscriptState();
+  summaryText.textContent =
+    "Fantastic effort today! Say each highlighted word slowly and confidently, then celebrate each clean try — small wins add up fast.";
+}
+
+toLoadingBtn.addEventListener("click", () => {
+  showScreen(loadingScreen);
+  setTimeout(() => {
+    renderFinal();
+    showScreen(finalScreen);
+  }, 2200);
+});
+
+restartBtn.addEventListener("click", () => {
+  renderTranscript();
+  showScreen(transcriptScreen);
+});
+
+renderTranscript();
 showScreen(transcriptScreen);
 checkBackend();
