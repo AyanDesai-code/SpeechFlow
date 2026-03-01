@@ -1,0 +1,248 @@
+:root {
+  --bg-a: #f6fbff;
+  --bg-b: #e8f3ff;
+  --bg-c: #dcecff;
+  --card: rgba(255, 255, 255, 0.92);
+  --card-strong: rgba(255, 255, 255, 0.98);
+  --text: #17314f;
+  --muted: #4f6784;
+  --primary: #2e81d8;
+  --primary-2: #58a3ef;
+  --accent: #8ed0ff;
+  --border: rgba(68, 128, 194, 0.26);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 45%, var(--bg-c) 100%);
+  color: var(--text);
+}
+
+.pi-app {
+  position: relative;
+  overflow: hidden;
+  width: min(480px, 100vw);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 12px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb-a {
+  width: 170px;
+  height: 170px;
+  background: radial-gradient(circle at 30% 30%, #e1f2ff 0%, rgba(88, 163, 239, 0.4) 55%, rgba(88, 163, 239, 0) 100%);
+  top: -48px;
+  right: -34px;
+}
+
+.orb-b {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle at 30% 30%, #f0f8ff 0%, rgba(142, 208, 255, 0.48) 55%, rgba(142, 208, 255, 0) 100%);
+  bottom: -58px;
+  left: -42px;
+}
+
+.topbar,
+.card,
+.actions {
+  position: relative;
+  z-index: 1;
+}
+
+.topbar {
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(115deg, #ffffff, #edf6ff);
+  padding: 10px 12px;
+  box-shadow:
+    0 10px 20px rgba(55, 119, 186, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-family: "Baloo 2", "Inter", sans-serif;
+  font-size: 1.58rem;
+  line-height: 1;
+}
+
+.topbar p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.screen {
+  display: none;
+  align-content: start;
+  gap: 10px;
+}
+
+.screen.active {
+  display: grid;
+}
+
+.card {
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  backdrop-filter: blur(5px);
+  padding: 12px;
+  box-shadow:
+    0 12px 24px rgba(34, 85, 138, 0.14),
+    0 2px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.card-highlight {
+  border-color: rgba(88, 163, 239, 0.45);
+}
+
+.tilt {
+  transform: rotate(-0.7deg);
+}
+
+.card h2,
+.card h3 {
+  margin: 0;
+  font-family: "Baloo 2", "Inter", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.card-chip {
+  width: fit-content;
+  margin-bottom: 7px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  background: linear-gradient(90deg, #d8ecff, #bfe0ff);
+  color: #1f4e7f;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 4px 0 0;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.list li {
+  border: 1px solid rgba(88, 163, 239, 0.3);
+  border-radius: 12px;
+  background: var(--card-strong);
+  padding: 9px;
+  font-size: 0.89rem;
+  box-shadow: 0 3px 0 rgba(88, 163, 239, 0.14);
+}
+
+.transcript-list {
+  max-height: 470px;
+  overflow: auto;
+}
+
+.practice-list {
+  max-height: 250px;
+  overflow: auto;
+}
+
+.who {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #2f77bf;
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+}
+
+.btn {
+  border: 0;
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 700;
+  min-height: 46px;
+  box-shadow:
+    0 8px 18px rgba(58, 122, 190, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.primary {
+  color: #fff;
+  background: linear-gradient(90deg, var(--primary), var(--primary-2));
+}
+
+.center {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.spinner {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 7px solid rgba(88, 163, 239, 0.24);
+  border-top-color: var(--primary);
+  border-right-color: var(--accent);
+  box-shadow: 0 0 20px rgba(88, 163, 239, 0.26);
+  animation: spin 0.85s linear infinite;
+}
+
+.summary {
+  margin: 8px 0 0;
+  color: #34506f;
+  line-height: 1.35;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Raspberry Pi portrait target around 480x800 */
+@media (max-width: 500px), (max-height: 860px) {
+  .pi-app {
+    width: 100vw;
+    padding: 8px;
+  }
+
+  .transcript-list {
+    max-height: 420px;
+  }
+}
