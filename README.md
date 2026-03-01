@@ -45,6 +45,12 @@ To expose this on the web, run on any host/VM/Raspberry Pi with a public DNS/IP 
 python backend_api.py --host 0.0.0.0 --port 8787
 ```
 The frontend and API are served together from one process, and the frontend uses relative `/api/...` paths so it works on any domain without hard-coded localhost ports.
+Run it locally with:
+```
+cd frontend
+python -m http.server 4173
+```
+Then open `http://localhost:4173` in your browser.
 
 The UI is now redesigned for a vertical Raspberry Pi touchscreen layout (optimized around ~`480x800`) with a light blue + white visual style tuned for clarity.
 

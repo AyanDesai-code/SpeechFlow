@@ -5,6 +5,9 @@ Serves both:
 - JSON API endpoints under /api
 
 This is additive and does not change the terminal workflow in conversation_engine.py.
+"""Minimal HTTP API to connect the frontend with SpeechFlow analysis.
+
+This is intentionally additive and does not modify terminal workflow in conversation_engine.py.
 """
 
 from __future__ import annotations
@@ -18,6 +21,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import unquote, urlparse
+import json
+import re
+from collections import Counter
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Iterable
 
 
 HOST = "0.0.0.0"
@@ -67,6 +75,7 @@ def analyze_transcript(lines: Iterable[dict]) -> dict:
         return {
             "practiceWords": {},
             "summary": "No user transcript was provided, so there are no focus words yet.",
+            "summary": "No user transcript was provided, so there are no focus words yet."
         }
 
     raw_text = " ".join(words)
@@ -110,6 +119,10 @@ def analyze_transcript(lines: Iterable[dict]) -> dict:
         summary = f"Focus on '{top_word}' first: say it slowly 5 times, then use it in two short sentences."
 
     return {"practiceWords": practice_words, "summary": summary}
+    return {
+        "practiceWords": practice_words,
+        "summary": summary,
+    }
 
 
 class SpeechFlowHandler(BaseHTTPRequestHandler):
@@ -171,6 +184,7 @@ class SpeechFlowHandler(BaseHTTPRequestHandler):
             return
 
         self._send_file(frontend_path)
+        self._send_json(404, {"error": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/api/analyze-transcript":
@@ -187,6 +201,7 @@ class SpeechFlowHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             self._send_json(400, {"error": "Body must be valid JSON"})
         except Exception as exc:
+        except Exception as exc:  # defensive API guard
             self._send_json(500, {"error": f"Unexpected server error: {exc}"})
 
 
@@ -207,3 +222,9 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     run_server(host=args.host, port=args.port)
+    print(f"SpeechFlow API server listening on http://{host}:{port}")
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    run_server()
