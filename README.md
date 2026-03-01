@@ -24,8 +24,34 @@ The following packages are needed:
 
 <h2>How to use</h2>
 
-Its really simple! An amazing stuttering correction device that runs completely in the terminal, you just need to <a href ="https://python.land/virtual-environments/virtualenv"> create a python virtual environment </a> and install the dependencies to get started, you talk into the device to tell it what you want to disscuss, which commences a 2 minute discussion on said topic, afterwards the conversation is analyzed and problematic words that have been flagged as being said wrong will be displayed and you just need to repeat them, this exercise can really help solve speech disorders especially stuttering.
+It's really simple: this stuttering-correction tool runs completely in the terminal. Create a <a href ="https://python.land/virtual-environments/virtualenv">Python virtual environment</a>, install the dependencies, and start speaking about a topic you want to discuss. The tool then runs a 2-minute conversation, analyzes your speech, and displays words that may need practice so you can repeat them. This exercise can help improve speech disorders, especially stuttering.
 
 <h2>Future Plans</h2>
 
 Although this only runs in a terminal, a GUI browser version is currently being developed and will be released later this month!
+
+
+<h2>Frontend Prototype</h2>
+A browser-based frontend is now included in `frontend/`.
+
+Run it locally with:
+```
+cd frontend
+python -m http.server 4173
+```
+Then open `http://localhost:4173` in your browser.
+
+To integrate the frontend with the backend analysis API, run this in a second terminal:
+```
+python backend_api.py
+```
+The frontend will automatically call `http://localhost:8787/api/analyze-transcript` and show live backend results when available (otherwise it falls back to demo mode).
+
+The UI is now redesigned for a vertical Raspberry Pi touchscreen layout (optimized around ~`480x800`) with a light blue + white visual style tuned for clarity.
+
+
+<h2>Frontend Screens</h2>
+Current simplified screens in this prototype:
+- Live transcript screen
+- Loading / analysis screen
+- Final results screen (practice words + summary)
