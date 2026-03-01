@@ -25,6 +25,7 @@ const demoPracticeWords = {
   excited: 2
 };
 
+const apiBase = "";
 const apiBase = `${window.location.protocol}//${window.location.hostname}:8787`;
 
 function showScreen(target) {

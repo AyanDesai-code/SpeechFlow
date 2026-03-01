@@ -34,6 +34,17 @@ Although this only runs in a terminal, a GUI browser version is currently being 
 <h2>Frontend Prototype</h2>
 A browser-based frontend is now included in `frontend/`.
 
+Run it locally with one unified web server:
+```
+python backend_api.py
+```
+Then open `http://localhost:8787` in your browser.
+
+To expose this on the web, run on any host/VM/Raspberry Pi with a public DNS/IP and open the same port:
+```
+python backend_api.py --host 0.0.0.0 --port 8787
+```
+The frontend and API are served together from one process, and the frontend uses relative `/api/...` paths so it works on any domain without hard-coded localhost ports.
 Run it locally with:
 ```
 cd frontend
