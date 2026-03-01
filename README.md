@@ -29,3 +29,23 @@ Its really simple! An amazing stuttering correction device that runs completely 
 <h2>Future Plans</h2>
 
 Although this only runs in a terminal, a GUI browser version is currently being developed and will be released later this month!
+
+
+<h2>Frontend Prototype</h2>
+A browser-based frontend is now included in `frontend/`.
+
+Run it locally with:
+```
+cd frontend
+python -m http.server 4173
+```
+Then open `http://localhost:4173` in your browser.
+
+The UI is now redesigned for a vertical Raspberry Pi touchscreen layout (optimized around ~`480x800`) with a light blue + white visual style tuned for clarity.
+
+
+<h2>Frontend Screens</h2>
+Current simplified screens in this prototype:
+- Live transcript screen
+- Loading / analysis screen
+- Final results screen (practice words + summary)
