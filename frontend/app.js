@@ -5,6 +5,7 @@ const finalScreen = document.getElementById("screen-final");
 const transcriptList = document.getElementById("transcriptList");
 const practiceList = document.getElementById("practiceList");
 const summaryText = document.getElementById("summaryText");
+const backendStatus = document.getElementById("backendStatus");
 
 const toLoadingBtn = document.getElementById("toLoadingBtn");
 const restartBtn = document.getElementById("restartBtn");
@@ -24,6 +25,8 @@ const demoPracticeWords = {
   excited: 2
 };
 
+const apiBase = `${window.location.protocol}//${window.location.hostname}:8787`;
+
 function showScreen(target) {
   [transcriptScreen, loadingScreen, finalScreen].forEach((screen) => {
     screen.classList.remove("active");
@@ -31,6 +34,9 @@ function showScreen(target) {
   target.classList.add("active");
 }
 
+function renderTranscript(lines = demoTranscript) {
+  transcriptList.innerHTML = "";
+  lines.forEach((line) => {
 function renderTranscript() {
   transcriptList.innerHTML = "";
   demoTranscript.forEach((line) => {
@@ -40,6 +46,15 @@ function renderTranscript() {
   });
 }
 
+function renderFinal(result) {
+  const practiceWords = result?.practiceWords || demoPracticeWords;
+  const summary =
+    result?.summary ||
+    "Strong effort today. Repeat each highlighted word slowly and clearly for your next round.";
+
+  practiceList.innerHTML = "";
+
+  Object.entries(practiceWords)
 function renderFinal() {
   practiceList.innerHTML = "";
 
@@ -51,6 +66,49 @@ function renderFinal() {
       practiceList.append(li);
     });
 
+  summaryText.textContent = summary;
+}
+
+async function checkBackend() {
+  try {
+    const res = await fetch(`${apiBase}/api/health`, { method: "GET" });
+    if (!res.ok) throw new Error("unhealthy");
+    const payload = await res.json();
+    backendStatus.textContent = payload.mode === "live" ? "Backend connected" : "Demo mode";
+  } catch (err) {
+    backendStatus.textContent = "Demo mode";
+  }
+}
+
+async function analyzeTranscriptWithBackend() {
+  const payload = { transcript: demoTranscript };
+
+  const res = await fetch(`${apiBase}/api/analyze-transcript`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+toLoadingBtn.addEventListener("click", async () => {
+  showScreen(loadingScreen);
+
+  try {
+    const result = await analyzeTranscriptWithBackend();
+    renderFinal(result);
+  } catch (err) {
+    renderFinal();
+  }
+
+  setTimeout(() => {
+    showScreen(finalScreen);
+  }, 900);
   summaryText.textContent =
     "Fantastic effort today! Say each highlighted word slowly and confidently, then celebrate each clean try — small wins add up fast.";
 }
@@ -70,3 +128,4 @@ restartBtn.addEventListener("click", () => {
 
 renderTranscript();
 showScreen(transcriptScreen);
+checkBackend();
