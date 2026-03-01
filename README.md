@@ -41,12 +41,6 @@ python -m http.server 4173
 ```
 Then open `http://localhost:4173` in your browser.
 
-To integrate the frontend with the backend analysis API, run this in a second terminal:
-```
-python backend_api.py
-```
-The frontend will automatically call `http://localhost:8787/api/analyze-transcript` and show live backend results when available (otherwise it falls back to demo mode).
-
 The UI is now redesigned for a vertical Raspberry Pi touchscreen layout (optimized around ~`480x800`) with a light blue + white visual style tuned for clarity.
 
 
