@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SpeechFlow Pi Mode</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="pi-app">
+      <span class="orb orb-a" aria-hidden="true"></span>
+      <span class="orb orb-b" aria-hidden="true"></span>
+
+      <header class="topbar tilt">
+        <h1>SpeechFlow</h1>
+        <p>Calm coaching in a clean Pi view</p>
+        <p id="backendStatus" class="backend-status">Checking backend…</p>
+      </header>
+
+      <!-- Screen 1: Live transcript -->
+      <section id="screen-transcript" class="screen active">
+        <div class="card tilt card-highlight">
+          <div class="card-chip">LIVE MODE</div>
+          <h2>🎤 Live Transcript</h2>
+          <p id="transcriptHint" class="muted">Tap Start Conversation to begin live transcript.</p>
+          <ul id="transcriptList" class="list transcript-list"></ul>
+        </div>
+        <div class="actions actions-two">
+          <button id="startConversationBtn" class="btn">Start Conversation</button>
+          <button id="toLoadingBtn" class="btn primary" disabled>Finish Conversation</button>
+        </div>
+      </section>
+
+      <!-- Screen 2: Loading -->
+      <section id="screen-loading" class="screen">
+        <div class="card center tilt card-highlight">
+          <div class="spinner" aria-hidden="true"></div>
+          <h2>Building your results…</h2>
+          <p class="muted">Analyzing your transcript and selecting focus words.</p>
+        </div>
+      </section>
+
+      <!-- Screen 3: Final summary -->
+      <section id="screen-final" class="screen">
+        <div class="card tilt card-highlight">
+          <div class="card-chip">LEVEL UP</div>
+          <h2>Session Complete</h2>
+          <p class="muted">Great work — here are your focus words for practice.</p>
+          <ul id="practiceList" class="list practice-list"></ul>
+        </div>
+
+        <div class="card tilt">
+          <h3>Quick Boost Tip</h3>
+          <p id="summaryText" class="summary"></p>
+        </div>
+
+        <div class="actions">
+          <button id="restartBtn" class="btn">Start New Round</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
