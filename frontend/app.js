@@ -6,6 +6,9 @@ const transcriptList = document.getElementById("transcriptList");
 const practiceList = document.getElementById("practiceList");
 const summaryText = document.getElementById("summaryText");
 const backendStatus = document.getElementById("backendStatus");
+const transcriptHint = document.getElementById("transcriptHint");
+
+const startConversationBtn = document.getElementById("startConversationBtn");
 
 const toLoadingBtn = document.getElementById("toLoadingBtn");
 const restartBtn = document.getElementById("restartBtn");
@@ -26,6 +29,9 @@ const demoPracticeWords = {
 };
 
 const apiBase = "";
+let conversationStarted = false;
+let transcriptTimer = null;
+let currentTranscript = [];
 const apiBase = `${window.location.protocol}//${window.location.hostname}:8787`;
 
 function showScreen(target) {
@@ -35,6 +41,9 @@ function showScreen(target) {
   target.classList.add("active");
 }
 
+function renderTranscript(lines = []) {
+  transcriptList.innerHTML = "";
+  lines.forEach((line) => {
 function renderTranscript(lines = demoTranscript) {
   transcriptList.innerHTML = "";
   lines.forEach((line) => {
@@ -45,6 +54,39 @@ function renderTranscript() {
     li.innerHTML = `<span class="who">${line.role}</span>${line.text}`;
     transcriptList.append(li);
   });
+}
+
+function resetTranscriptState() {
+  if (transcriptTimer) {
+    clearInterval(transcriptTimer);
+    transcriptTimer = null;
+  }
+
+  conversationStarted = false;
+  currentTranscript = [];
+  renderTranscript(currentTranscript);
+
+  transcriptHint.textContent = "Tap Start Conversation to begin live transcript.";
+  startConversationBtn.disabled = false;
+  toLoadingBtn.disabled = true;
+}
+
+function streamDemoTranscript() {
+  let idx = 0;
+  transcriptTimer = setInterval(() => {
+    if (idx >= demoTranscript.length) {
+      clearInterval(transcriptTimer);
+      transcriptTimer = null;
+      toLoadingBtn.disabled = false;
+      transcriptHint.textContent = "Conversation captured. Tap Finish Conversation to analyze.";
+      return;
+    }
+
+    currentTranscript.push(demoTranscript[idx]);
+    renderTranscript(currentTranscript);
+    transcriptList.scrollTop = transcriptList.scrollHeight;
+    idx += 1;
+  }, 700);
 }
 
 function renderFinal(result) {
@@ -82,6 +124,7 @@ async function checkBackend() {
 }
 
 async function analyzeTranscriptWithBackend() {
+  const payload = { transcript: currentTranscript.length ? currentTranscript : demoTranscript };
   const payload = { transcript: demoTranscript };
 
   const res = await fetch(`${apiBase}/api/analyze-transcript`, {
@@ -97,6 +140,17 @@ async function analyzeTranscriptWithBackend() {
   return res.json();
 }
 
+startConversationBtn.addEventListener("click", () => {
+  if (conversationStarted) {
+    return;
+  }
+
+  conversationStarted = true;
+  startConversationBtn.disabled = true;
+  transcriptHint.textContent = "Conversation started… capturing lines now.";
+  streamDemoTranscript();
+});
+
 toLoadingBtn.addEventListener("click", async () => {
   showScreen(loadingScreen);
 
@@ -110,6 +164,14 @@ toLoadingBtn.addEventListener("click", async () => {
   setTimeout(() => {
     showScreen(finalScreen);
   }, 900);
+});
+
+restartBtn.addEventListener("click", () => {
+  resetTranscriptState();
+  showScreen(transcriptScreen);
+});
+
+resetTranscriptState();
   summaryText.textContent =
     "Fantastic effort today! Say each highlighted word slowly and confidently, then celebrate each clean try — small wins add up fast.";
 }

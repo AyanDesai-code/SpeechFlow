@@ -191,6 +191,17 @@ body {
   display: grid;
 }
 
+.actions-two {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .btn {
   border: 0;
   border-radius: 14px;

@@ -40,6 +40,8 @@ python backend_api.py
 ```
 Then open `http://localhost:8787` in your browser.
 
+If you see a startup `SyntaxError`, pull the latest code and rerun `python backend_api.py` (the server file should start with comment lines, not an open triple-quoted block).
+
 To expose this on the web, run on any host/VM/Raspberry Pi with a public DNS/IP and open the same port:
 ```
 python backend_api.py --host 0.0.0.0 --port 8787
@@ -57,6 +59,7 @@ The UI is now redesigned for a vertical Raspberry Pi touchscreen layout (optimiz
 
 <h2>Frontend Screens</h2>
 Current simplified screens in this prototype:
+- Live transcript screen (tap **Start Conversation** to begin)
 - Live transcript screen
 - Loading / analysis screen
 - Final results screen (practice words + summary)

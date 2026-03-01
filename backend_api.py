@@ -1,3 +1,6 @@
+# Web-deployable SpeechFlow server.
+# Serves both frontend static files (from /frontend) and JSON API endpoints under /api.
+# This is additive and does not change the terminal workflow in conversation_engine.py.
 """Web-deployable SpeechFlow server.
 
 Serves both:
