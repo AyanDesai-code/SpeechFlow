@@ -63,3 +63,27 @@ Current simplified screens in this prototype:
 - Live transcript screen
 - Loading / analysis screen
 - Final results screen (practice words + summary)
+
+
+**derek thingy**
+
+Setuptools 68.2.2
+pip install --no-build-isolation -r requirements.txt
+
+
+IN POWERSHELL:
+
+Do this too:
+
+Step A — Recreate with Python 3.10
+py -3.10 -m venv venv
+
+Step B — Fix execution policy 
+Run:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+This is temporary (safe) and only applies to this terminal.
+
+Step C — Activate venv
+.\venv\Scripts\Activate.ps1
+
+

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import models
 import torch, torchaudio
+import uuid
 
 warnings.filterwarnings("ignore")
 from transformers import BertTokenizerFast, BertForTokenClassification, Wav2Vec2FeatureExtractor
@@ -66,7 +67,6 @@ def run_language_based(audio_file, text_df, device):
         num_labels=5
     )
 
-    # 🔥 FIX: Load state dict safely
     state_dict = torch.load('demo_models/language.pt', map_location=device)
     model.load_state_dict(state_dict, strict=False)
 
@@ -216,7 +216,7 @@ def setup_log(log_file):
     sys.stderr = logger
 
 def process_audio(audio_file,
-                  output_file="temp_output.csv",
+                  output_file=f"user_{uuid.uuid4().hex[:8]}.csv",
                   output_trans=None,
                   device="cpu",
                   modality="multimodal"):

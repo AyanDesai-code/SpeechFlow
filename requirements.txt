@@ -1,0 +1,9 @@
+soundfile
+numpy==1.26.4
+pandas==2.2.2
+openai-whisper==20231117
+whisper_timestamped==1.14.2
+torch==2.1.2
+torchaudio==2.1.2
+transformers==4.35.0
+gdown==5.1.0
