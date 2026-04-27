@@ -1,6 +1,5 @@
 CONVERSATION_LIMIT = 120  # seconds
 
-from dotenv import load_dotenv
 import os
 import time
 import uuid
@@ -14,12 +13,10 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 import whisper
 import pyttsx3
-
+from dotenv import load_dotenv
 import main
-
-
-
-load_dotenv()
+os.environ["PATH"] += os.pathsep + r"C:\Users\derek\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin"
+load_dotenv
 client = OpenAI()
 
 conversation = [
@@ -30,7 +27,7 @@ conversation = [
 ]
 
 print("Loading Whisper model...")
-whisper_model = whisper.load_model("small")
+whisper_model = whisper.load_model("/demo_models/asr")
 print("Whisper loaded.")
 
 tts_engine = pyttsx3.init()
@@ -38,7 +35,7 @@ audio_files = []
 
 
 def record_audio(fs=16000,
-                 silence_threshold=0.002,
+                 silence_threshold=0.0002,
                  silence_duration=2.0,
                  max_duration=20):
 
@@ -46,8 +43,8 @@ def record_audio(fs=16000,
     silence_start = None
     recording_started = False
     start_time = None
-
-    filename = f"user_{uuid.uuid4().hex[:8]}.wav"
+    number=uuid.uuid4().hex[:8]
+    filename = f"user_{number}.wav"
 
     with sd.InputStream(samplerate=fs,
                         channels=1,
@@ -96,10 +93,11 @@ def transcribe(audio_path):
 
 
 def speak(text):
-    print("AI:", text)
-    tts_engine.say(text)
-    tts_engine.runAndWait()
-    time.sleep(0.6)
+    print("AI:", str(text))
+    engine = pyttsx3.init()
+
+    engine.say(str(text))
+    engine.runAndWait()
 
 
 def get_ai_response(user_text):
@@ -180,7 +178,7 @@ def analyze_session(audio_files):
         print("Processing", file)
 
         try:
-            _, text_df = main.process_audio(file)
+            _, text_df = main.process_audio(file, modality="multimodal")
         except Exception as e:
             print("Skipping", file, e)
             continue
@@ -263,7 +261,8 @@ if __name__ == "__main__":
             continue
 
         ai_reply = get_ai_response(user_text)
-        speak(ai_reply)
+        print("Hey we got here")
+        speak(str(ai_reply))
 
     print("\nAnalyzing session...\n")
 
