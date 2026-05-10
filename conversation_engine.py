@@ -7,17 +7,31 @@ import re
 import numpy as np
 import pandas as pd
 from collections import Counter
+from dotenv import load_dotenv
 
 from openai import OpenAI
 import sounddevice as sd
 from scipy.io.wavfile import write
-import whisper
+import whisper_timestamped as whisper
 import pyttsx3
-from dotenv import load_dotenv
 import main
+import requests
+
+def log(text):
+    try:
+        requests.post(
+            "http://192.168.1.185:5000/log",
+            json={"message": text},
+            timeout=1
+        )
+    except Exception as e:
+        print("Log failed:", e)
+
+
 os.environ["PATH"] += os.pathsep + r"C:\Users\derek\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin"
-load_dotenv
+load_dotenv()
 client = OpenAI()
+
 
 conversation = [
     {
@@ -27,8 +41,9 @@ conversation = [
 ]
 
 print("Loading Whisper model...")
-whisper_model = whisper.load_model("/demo_models/asr")
-print("Whisper loaded.")
+device='cpu'
+whisper_model = whisper.load_model('demo_models/asr', device='cpu')
+whisper_model.to(device)
 
 tts_engine = pyttsx3.init()
 audio_files = []
@@ -94,10 +109,9 @@ def transcribe(audio_path):
 
 def speak(text):
     print("AI:", str(text))
-    engine = pyttsx3.init()
-
-    engine.say(str(text))
-    engine.runAndWait()
+    log(f"AI: {text}") 
+    tts_engine.say(str(text))
+    tts_engine.runAndWait()
 
 
 def get_ai_response(user_text):
@@ -176,9 +190,9 @@ def analyze_session(audio_files):
     for file in audio_files:
 
         print("Processing", file)
-
+        file_id = file.replace(".wav", "")
         try:
-            _, text_df = main.process_audio(file, modality="multimodal")
+            _, text_df = main.process_audio(file, modality="multimodal", output_trans=f"{file_id}output.csv", output_file=f"{file_id}.csv")
         except Exception as e:
             print("Skipping", file, e)
             continue
@@ -253,8 +267,9 @@ if __name__ == "__main__":
 
         user_text = transcribe(audio_file)
         print("You said:", user_text)
+        log(f"You said: {user_text}")
 
-        if user_text.strip().lower() in ["exit", "quit"]:
+        if user_text.strip().lower() in ["exit", "quit", "Exit", "Quit", "exit.", "Exit."]:
             break
 
         if not user_text.strip():
@@ -267,6 +282,8 @@ if __name__ == "__main__":
     print("\nAnalyzing session...\n")
 
     practice_words = analyze_session(audio_files)
+    for i in practice_words:
+        log([i, practice_words[i]])
 
     if not practice_words:
         speak("You spoke smoothly. Good job.")

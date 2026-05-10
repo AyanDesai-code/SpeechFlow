@@ -2,12 +2,41 @@ from flask import Flask
 import subprocess
 import sys
 app = Flask(__name__)
+from flask import request
+logs=[]
+
 
 @app.route('/')
 def index():
     return '''
     <button onclick="fetch('/start')">start</button>
+    <pre id="output"></pre>
+
+    <script>
+    async function updateLogs() {
+        const response = await fetch('/logs');
+        const text = await response.text();
+
+        document.getElementById('output').textContent = text;
+    }
+
+    setInterval(updateLogs, 500);
+    </script>
+    
     '''
+
+@app.route('/logs')
+def get_logs():
+    return "\n".join(logs)
+
+
+
+@app.route('/log', methods=['POST'])
+def log():
+    data = request.json
+    logs.append(data['message'])
+
+    return '', 204
 
 @app.route('/start')
 def start():
