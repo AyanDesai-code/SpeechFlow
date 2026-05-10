@@ -7,6 +7,8 @@ import pandas as pd
 import models
 import torch, torchaudio
 import uuid
+import random
+
 
 warnings.filterwarnings("ignore")
 from transformers import BertTokenizerFast, BertForTokenClassification, Wav2Vec2FeatureExtractor
@@ -16,18 +18,17 @@ from models import AcousticModel, MultimodalModel
 
 labels = ['FP', 'RP', 'RV', 'RS', 'PW']
 
+
 def run_asr(audio_file, device):
 
     audio, orgnl_sr = torchaudio.load(audio_file)
     audio_rs = torchaudio.functional.resample(audio, orgnl_sr, 16000)[0, :]
     audio_rs = audio_rs.to(device)
 
-    model = whisper.load_model('demo_models/asr', device='cpu')
-    model.to(device)
-    print('loaded finetuned whisper asr')
+
 
     result = whisper.transcribe(
-        model,
+        whisper_model,
         audio_rs,
         language='en',
         beam_size=5,
@@ -216,8 +217,8 @@ def setup_log(log_file):
     sys.stderr = logger
 
 def process_audio(audio_file,
-                  output_file=f"user_{uuid.uuid4().hex[:8]}.csv",
-                  output_trans=None,
+                  output_file = None,
+                  output_trans= None,
                   device="cpu",
                   modality="multimodal"):
 
