@@ -20,7 +20,7 @@ import requests
 def log(text):
     try:
         requests.post(
-            "http://192.168.1.185:5000/log",
+            "http://192.168.1.162:5000/log",
             json={"message": text},
             timeout=1
         )
