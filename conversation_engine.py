@@ -42,7 +42,7 @@ conversation = [
 
 print("Loading Whisper model...")
 device='cpu'
-whisper_model = whisper.load_model('demo_models/asr', device='cpu')
+whisper_model = whisper.load_model('tiny', device='cpu')
 whisper_model.to(device)
 
 tts_engine = pyttsx3.init()
