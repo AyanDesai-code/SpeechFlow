@@ -1,6 +1,7 @@
-CONVERSATION_LIMIT = 120  # seconds
-
+CONVERSATION_LIMIT = 150  # seconds
+import torchaudio
 import os
+from silero_vad import load_silero_vad, get_speech_timestamps
 import time
 import uuid
 import re
@@ -8,7 +9,7 @@ import numpy as np
 import pandas as pd
 from collections import Counter
 from dotenv import load_dotenv
-
+import threading
 from openai import OpenAI
 import sounddevice as sd
 from scipy.io.wavfile import write
@@ -16,21 +17,47 @@ import whisper_timestamped as whisper
 import pyttsx3
 import main
 import requests
+import win32com.client
+from playsound import playsound
+import edge_tts
+import asyncio
+import torch
+import base64
+import json
 
-def log(text):
+import transformers
+tts_lock = threading.Lock()
+model=load_silero_vad()
+torch.set_num_threads(4)
+def log(text, speak_text=False):
+
+    text = str(text)
+
+
     try:
         requests.post(
-            "http://192.168.1.162:5000/log",
+            "http://192.168.1.185:5000/log",
             json={"message": text},
             timeout=1
         )
     except Exception as e:
         print("Log failed:", e)
 
+    if speak_text:
+            try:
+                with tts_lock:
+                    communicate = edge_tts.Communicate(text, "en-US-JennyNeural", rate="+30%")
+                    asyncio.run(communicate.save("temp_response.mp3"))
+                    playsound("temp_response.mp3")
+            except Exception as e:
+                print("TTS failed:", e)
 
-os.environ["PATH"] += os.pathsep + r"C:\Users\derek\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin"
+
 load_dotenv()
-client = OpenAI()
+client = OpenAI(
+    base_url=os.getenv("base_url"),
+    api_key=os.getenv("api_key")
+)
 
 
 conversation = [
@@ -39,61 +66,94 @@ conversation = [
         "content": "You are a friendly conversational AI. Keep responses short and concise. Only speak English. No emojis."
     }
 ]
-
+log("Loading the model, speak when the text says: 'Listening for speech'", speak_text=True)
 print("Loading Whisper model...")
 device='cpu'
-whisper_model = whisper.load_model('tiny', device='cpu')
+whisper_model = whisper.load_model('demo_models/asr', device='cpu')
 whisper_model.to(device)
-
-tts_engine = pyttsx3.init()
 audio_files = []
 
 
-def record_audio(fs=16000,
-                 silence_threshold=0.0002,
-                 silence_duration=2.0,
-                 max_duration=20):
+def record_audio(
+    fs=16000,
+    frame_ms=30,
+    silence_duration=1.5,
+    max_duration=20
+):
+    import numpy as np
+    import torch
+    import time
+    import uuid
+    from scipy.io.wavfile import write
+
+    frame_size = 512 #int(fs * frame_ms / 1000)
 
     recording = []
-    silence_start = None
-    recording_started = False
-    start_time = None
-    number=uuid.uuid4().hex[:8]
-    filename = f"user_{number}.wav"
+    speech_started = False
 
-    with sd.InputStream(samplerate=fs,
-                        channels=1,
-                        dtype="float32") as stream:
+    silence_start = None
+    start_time = time.time()
+
+    filename = f"user_{uuid.uuid4().hex[:8]}.wav"
+
+    log("Listening for speech...")
+
+    with sd.InputStream(samplerate=fs, channels=1, dtype="float32") as stream:
 
         while True:
-            data, _ = stream.read(1024)
-            volume = np.linalg.norm(data) / len(data)
+            data, _ = stream.read(frame_size)
+            audio_chunk = data.flatten()
 
-            if not recording_started:
-                if volume > silence_threshold:
-                    recording_started = True
+            # convert to tensor for silero
+            audio_tensor = torch.from_numpy(audio_chunk.copy())
+
+            # Silero VAD prediction (batch-sized but fast per frame)
+            speech_prob = model(audio_tensor, fs).item()
+            print(f"Speech probability: {speech_prob:.2f}")
+            is_speech = speech_prob > 0.95
+
+            # ----------------------------
+            # 1. Speech START detection
+            # ----------------------------
+            if not speech_started:
+                if is_speech:
+                    speech_started = True
+                    log("Speech detected → starting recording")
+                    recording.append(audio_chunk)
                     start_time = time.time()
-                    recording.append(data)
                 continue
 
-            recording.append(data)
+            # ----------------------------
+            # 2. Already recording
+            # ----------------------------
+            recording.append(audio_chunk)
 
-            if volume < silence_threshold:
+            # max duration safety
+            if time.time() - start_time > max_duration:
+                log("Max duration reached")
+                break
+
+            # ----------------------------
+            # 3. Silence detection (for stop)
+            # ----------------------------
+            if is_speech:
+                silence_start = None
+            else:
                 if silence_start is None:
                     silence_start = time.time()
                 elif time.time() - silence_start > silence_duration:
+                    log("Silence detected → stopping recording")
                     break
-            else:
-                silence_start = None
 
-            if time.time() - start_time > max_duration:
-                break
-
-    if not recording_started:
+    # ----------------------------
+    # No speech recorded fallback
+    # ----------------------------
+    if not speech_started:
         return None
 
     audio = np.concatenate(recording, axis=0).flatten()
-    audio = np.clip(audio, -1.0, 1.0)
+
+    # convert to int16 WAV
     audio_int16 = (audio * 32767).astype(np.int16)
 
     write(filename, fs, audio_int16)
@@ -101,20 +161,42 @@ def record_audio(fs=16000,
 
     return filename
 
-
 def transcribe(audio_path):
-    result = whisper_model.transcribe(audio_path)
+    log("Transcribing...")
+
+
+    with open(audio_path, "rb") as f:
+        base64_audio = base64.b64encode(f.read()).decode("utf-8")
+
+    response = requests.post(
+    url="https://openrouter.ai/api/v1/audio/transcriptions",
+    headers={
+        "Authorization": f"Bearer {os.getenv('api_key')}",
+        "Content-Type": "application/json"
+        
+    },
+    data=json.dumps({
+        "model": "openai/gpt-4o-mini-transcribe",
+        "input_audio": {
+        "data": base64_audio,
+        "format": "wav"
+        },
+        "timestamp_granularities": ["segment"]
+
+    })
+    )
+    result = response.json()
+    print(result)
     return result["text"]
 
 
-def speak(text):
-    print("AI:", str(text))
-    log(f"AI: {text}") 
-    tts_engine.say(str(text))
-    tts_engine.runAndWait()
+
+
+
 
 
 def get_ai_response(user_text):
+    log("Getting AI response...")
     conversation.append({"role": "user", "content": user_text})
 
     response = client.chat.completions.create(
@@ -135,7 +217,7 @@ def clean_words(text):
 def force_practice(word):
 
     word = word.lower()
-    speak(f"You must say the word {word}. Say it once clearly.")
+    log(f"You must say the word {word}. Say it once clearly.", speak_text=True)
 
     while True:
 
@@ -157,10 +239,10 @@ def force_practice(word):
                 repetition = True
 
         if correct and short_enough and not repetition:
-            speak("Good. That was clear.")
+            log("Good. That was clear.", speak_text=True)
             break
         else:
-            speak("Not clear. Say it once slowly.")
+            log("Not clear. Say it once slowly.", speak_text=True)
 
 
 def has_prefix_stutter(word):
@@ -184,12 +266,12 @@ def has_hyphen_stutter(word):
 
 
 def analyze_session(audio_files):
-
+    log("Analyzing session...")
     repetition_counter = Counter()
 
     for file in audio_files:
 
-        print("Processing", file)
+        log(f"Processing {file}")
         file_id = file.replace(".wav", "")
         try:
             _, text_df = main.process_audio(file, modality="multimodal", output_trans=f"{file_id}output.csv", output_file=f"{file_id}.csv")
@@ -197,11 +279,38 @@ def analyze_session(audio_files):
             print("Skipping", file, e)
             continue
 
+        # Check disfluency CSV for this file
+        disfluency_file = f"{file_id}.csv"
+        if os.path.exists(disfluency_file):
+            try:
+                disfluency_df = pd.read_csv(disfluency_file)
+                disfluency_columns = ["FP", "RP", "RV", "RS", "PW"]
+                disfluency_names = {
+                    "FP": "Filled Pause",
+                    "RP": "Repetition",
+                    "RV": "Revision",
+                    "RS": "Restart",
+                    "PW": "Partial Word"
+                }
+                
+                for col in disfluency_columns:
+                    if col in disfluency_df.columns:
+                        disfluencies = disfluency_df[disfluency_df[col] == 1]
+                        if len(disfluencies) > 0:
+                            start_time = disfluencies.iloc[0]["frame_time"]
+                            end_time = disfluencies.iloc[-1]["frame_time"]
+                            count = len(disfluencies)
+                            log(f"  {disfluency_names[col]}: {count} frames detected from {start_time:.2f}s to {end_time:.2f}s")
+                        else:
+                            log(f"  {disfluency_names[col]}: No frames detected")
+            except Exception as e:
+                print(f"Error reading disfluency CSV {disfluency_file}: {e}")
+
         raw_words = text_df["text"].fillna("").tolist()
         words = [w.lower() for w in raw_words if w]
 
         raw_text = " ".join(words)
-
+        print("Raw text:", raw_text)
         matches = re.findall(r"\b(\w+)( \1){2,}", raw_text)
         for match in matches:
             repetition_counter[match[0]] += 3
@@ -229,7 +338,8 @@ def analyze_session(audio_files):
                 repetition_counter[phrase] += 2
 
 
-    FILLER_WORDS = {"uh", "um", "erm", "ah", "uhh", "umm"}
+
+    FILLER_WORDS = {"uh", "um", "erm", "ah", "uhh", "umm", "like", "you know", "i mean", "so", "actually", "basically", "right", "well", "hmm"}
 
     def valid(word):
         return (
@@ -251,12 +361,12 @@ def analyze_session(audio_files):
 if __name__ == "__main__":
 
     start_time = time.time()
-    speak("Hi. What is something you enjoy?")
+    log("Hi. What is something you enjoy?", speak_text=True)
 
     while True:
 
         if time.time() - start_time > CONVERSATION_LIMIT:
-            speak("That was a good conversation. Let us stop here.")
+            log("That was a good conversation. Let us stop here.", speak_text=True)
             break
 
         audio_file = record_audio()
@@ -265,33 +375,32 @@ if __name__ == "__main__":
 
         audio_files.append(audio_file)
 
+        
         user_text = transcribe(audio_file)
         print("You said:", user_text)
-        log(f"You said: {user_text}")
+        log(f"You said: {user_text}", speak_text=False)
 
         if user_text.strip().lower() in ["exit", "quit", "Exit", "Quit", "exit.", "Exit."]:
             break
 
         if not user_text.strip():
             continue
-
         ai_reply = get_ai_response(user_text)
         print("Hey we got here")
-        speak(str(ai_reply))
+        log(f"{ai_reply}", speak_text=True)
 
     print("\nAnalyzing session...\n")
 
     practice_words = analyze_session(audio_files)
-    for i in practice_words:
-        log([i, practice_words[i]])
+    #log(list(practice_words.keys()))
 
     if not practice_words:
-        speak("You spoke smoothly. Good job.")
+        log("There are no specific words you need to practice. Good job.", speak_text=True)
     else:
         top_words = [w for w, _ in practice_words.most_common(5)]
-        speak("We will practice these words: " + ", ".join(top_words))
+        log(f"Words we noticed you could improve on: {', '.join(top_words)}", speak_text=True)
 
         for word in top_words:
             force_practice(word)
 
-        speak("Session complete. Excellent work.")
+        log("Session complete. Excellent work.", speak_text=True)
