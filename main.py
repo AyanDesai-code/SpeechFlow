@@ -8,7 +8,11 @@ import models
 import torch, torchaudio
 import uuid
 import random
+import whisper_timestamped as whisper
 
+device='cpu'
+whisper_model = whisper.load_model('demo_models/asr', device='cpu')
+whisper_model.to(device)
 
 warnings.filterwarnings("ignore")
 from transformers import BertTokenizerFast, BertForTokenClassification, Wav2Vec2FeatureExtractor
@@ -18,6 +22,7 @@ from models import AcousticModel, MultimodalModel
 
 labels = ['FP', 'RP', 'RV', 'RS', 'PW']
 
+@torch.inference_mode()
 
 def run_asr(audio_file, device):
 
@@ -31,8 +36,8 @@ def run_asr(audio_file, device):
         whisper_model,
         audio_rs,
         language='en',
-        beam_size=5,
-        temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+        beam_size=1,
+        temperature=0.0
     )
 
     words = []
